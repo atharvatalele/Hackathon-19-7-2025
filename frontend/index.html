@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DevTrace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-6">
+  <div class="max-w-5xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6 text-center text-teal-400">DevTrace</h1>
+
+    <!-- Filters -->
+    <div class="bg-gray-800 p-4 rounded-xl mb-6 flex flex-wrap gap-4 items-center justify-between">
+      <input id="search" placeholder="Search Summary..." class="bg-gray-700 text-white px-4 py-2 rounded-lg w-full md:w-[40%]" />
+      <input id="author" placeholder="Author" class="bg-gray-700 text-white px-4 py-2 rounded-lg w-full md:w-[15%]" />
+      <input id="date" type="date" class="bg-gray-700 text-white px-4 py-2 rounded-lg w-full md:w-[15%]" />
+      <input id="time" type="time" class="bg-gray-700 text-white px-4 py-2 rounded-lg w-full md:w-[15%]" />
+      <button onclick="fetchSummaries(true)" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg w-full md:w-[19%]">Search</button>
+      <button onclick="resetSearch()" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg w-full md:w-[19%]">Reset</button>
+    </div>
+
+    <div id="summary-list" class="space-y-4"></div>
+
+    <div class="text-center mt-8">
+      <button id="load-more" class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-xl shadow-md transition">
+        Load More
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let skip = 0;
+    const limit = 3;
+    let allLoaded = false;
+
+    async function fetchSummaries(reset = false) {
+      if (allLoaded && !reset) return;
+
+      // Reset paging and clear list if requested
+      if (reset) {
+        document.getElementById("summary-list").innerHTML = "";
+        skip = 0;
+        allLoaded = false;
+      }
+
+      const author = document.getElementById("author").value;
+      const date   = document.getElementById("date").value;
+      const time   = document.getElementById("time").value;
+      const search = document.getElementById("search").value;
+
+      // Use 'offset' to match backend parameter
+      let query = `offset=${skip}&limit=${limit}`;
+      if (author) query += `&author=${encodeURIComponent(author)}`;
+      if (date)   query += `&date=${encodeURIComponent(date)}`;
+      if (time)   query += `&time=${encodeURIComponent(time)}`;
+      if (search) query += `&query=${encodeURIComponent(search)}`;
+
+      try {
+        const res = await fetch(`http://localhost:8000/summaries?${query}`);
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+          allLoaded = true;
+          if (skip === 0) {
+            document.getElementById("summary-list").innerHTML = "<p class='text-gray-400'>No summaries found.</p>";
+          }
+          return;
+        }
+
+        // Render fetched summaries
+        const list = document.getElementById("summary-list");
+        data.forEach(summary => {
+          const container = document.createElement("div");
+          container.className = "bg-gray-800 p-4 rounded-xl mb-4 shadow-md hover:bg-gray-700 transition";
+
+          const shortText = summary.summary.split(" ").slice(0, 10).join(" ") + "...";
+          const fullText  = summary.summary;
+
+          const summaryElement = document.createElement("p");
+          summaryElement.className = "text-white font-medium cursor-pointer";
+          summaryElement.innerText = shortText;
+          summaryElement.addEventListener("click", () => {
+            summaryElement.innerText = (summaryElement.innerText === shortText) ? fullText : shortText;
+          });
+
+          const meta = document.createElement("p");
+          meta.className = "text-sm text-gray-400 mt-1";
+          meta.innerText =
+            `Repo: ${summary.repo_meta.repo} | ` +
+            `Branch: ${summary.repo_meta.branch} | ` +
+            `Author: ${summary.repo_meta.author} | ` +
+            `Time: ${new Date(summary.timestamp).toLocaleString()}`;
+
+          container.appendChild(summaryElement);
+          container.appendChild(meta);
+          list.appendChild(container);
+        });
+
+        // Advance offset once per fetch
+        skip += data.length;
+        if (data.length < limit) allLoaded = true;
+
+      } catch (err) {
+        console.error("Error fetching summaries:", err);
+      }
+    }
+
+    function resetSearch() {
+      document.getElementById("author").value = "";
+      document.getElementById("date").value   = "";
+      document.getElementById("time").value   = "";
+      document.getElementById("search").value = "";
+      fetchSummaries(true);
+    }
+
+    document.getElementById("load-more").addEventListener("click", () => fetchSummaries());
+
+    ["author", "date", "time", "search"].forEach(id =>
+      document.getElementById(id).addEventListener("input", () => fetchSummaries(true))
+    );
+
+    window.onload = () => fetchSummaries();
+  </script>
+</body>
+</html>

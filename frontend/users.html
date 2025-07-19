@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>DevTrace • Users</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-6">
+  <div class="max-w-4xl mx-auto space-y-6">
+
+    <h1 class="text-3xl font-bold text-teal-400 text-center">DevTrace • Users</h1>
+
+    <!-- Create & Search -->
+    <div class="bg-gray-800 p-4 rounded-xl flex flex-wrap gap-4">
+      <input id="newUsername" placeholder="New username" class="bg-gray-700 px-4 py-2 rounded flex-1 md:flex-none md:w-1/3"/>
+      <button onclick="createUser()" class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded">Create User</button>
+      <input id="searchUser" placeholder="Search users" class="bg-gray-700 px-4 py-2 rounded flex-1 md:flex-none md:w-1/3"/>
+      <button onclick="loadUsers()" class="bg-teal-500 hover:bg-teal-600 px-4 py-2 rounded">Search</button>
+    </div>
+
+    <!-- User List -->
+    <div id="userList" class="space-y-4"></div>
+
+  </div>
+
+  <script>
+    let users = [];
+
+    async function loadUsers() {
+      const term = document.getElementById('searchUser').value.trim();
+      const url = term
+        ? `/api/users?search=${encodeURIComponent(term)}`
+        : '/api/users';
+      console.log('Fetching users from', url);
+      const res = await fetch(url);
+      users = await res.json();
+      renderUsers();
+    }
+
+    function renderUsers() {
+      const c = document.getElementById('userList');
+      c.innerHTML = '';
+      users.forEach(u => {
+        const div = document.createElement('div');
+        div.className = 'bg-gray-800 p-4 rounded-xl';
+        div.innerHTML = `
+          <div class="flex justify-between items-center cursor-pointer" onclick="toggle('${u.username}')">
+            <span class="font-semibold">${u.username}</span>
+            <span id="icon-${u.username}">[+]</span>
+          </div>
+          <div id="details-${u.username}" class="mt-2 hidden space-y-4">
+            <div class="flex gap-2">
+              <input id="taskTitle-${u.username}" placeholder="Task title" class="flex-1 bg-gray-700 px-3 py-2 rounded"/>
+              <input id="taskDesc-${u.username}" placeholder="Description" class="flex-1 bg-gray-700 px-3 py-2 rounded"/>
+              <button onclick="createTask('${u.username}')" class="bg-teal-500 hover:bg-teal-600 px-4 py-2 rounded">Add</button>
+            </div>
+            <div>
+              <h4 class="font-medium">Active Tasks</h4>
+              <div id="active-${u.username}" class="space-y-2"></div>
+            </div>
+            <div>
+              <h4 class="font-medium">Task History</h4>
+              <div id="done-${u.username}" class="space-y-2"></div>
+            </div>
+          </div>`;
+        c.appendChild(div);
+        loadTasks(u.username);
+      });
+    }
+
+    function toggle(name) {
+      const d = document.getElementById(`details-${name}`);
+      const i = document.getElementById(`icon-${name}`);
+      if (d.classList.toggle('hidden')) i.textContent = '[+]'; else i.textContent = '[-]';
+    }
+
+    async function loadTasks(username) {
+      const res = await fetch(`/api/users/${username}/tasks`);
+      const {active, completed} = await res.json();
+      const act = document.getElementById(`active-${username}`);
+      const done = document.getElementById(`done-${username}`);
+      act.innerHTML = active.map(t => taskHTML(t,false)).join('');
+      done.innerHTML = completed.map(t => taskHTML(t,true)).join('');
+    }
+
+    function taskHTML(t, done) {
+      return `
+        <div class="bg-gray-700 p-3 rounded flex justify-between items-center">
+          <div>
+            <p class="font-medium">${t.title}</p>
+            <p class="text-sm text-gray-300">${t.description}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            ${!done
+              ? `<progress value="${t.progress}" max="100" class="w-24 h-2"></progress>
+                 <button onclick="completeTask('${t.id}')" class="text-green-400">✔️</button>`
+              : `<span class="text-green-400">✔</span>
+                 <button onclick="reviewTask('${t.id}')" class="text-white">❓</button>`}
+            <button onclick="deleteTask('${t.id}')" class="text-red-500">❌</button>
+          </div>
+        </div>`;
+    }
+
+    async function createUser() {
+      const name = document.getElementById('newUsername').value.trim();
+      if (!name) return alert('Username required');
+      console.log('Creating user', name);
+      await fetch('/api/users', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({username:name})
+      });
+      document.getElementById('newUsername').value='';
+      loadUsers();
+    }
+
+    async function createTask(user) {
+      const title = document.getElementById(`taskTitle-${user}`).value.trim();
+      const desc  = document.getElementById(`taskDesc-${user}`).value.trim();
+      if (!title) return alert('Task title required');
+      console.log('Creating task for',user, title);
+      await fetch('/api/tasks', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({title,description:desc,assigned_to:user})
+      });
+      loadTasks(user);
+    }
+
+    async function completeTask(id) {
+      console.log('Completing',id);
+      await fetch(`/api/tasks/${id}/complete`,{method:'POST'});
+      loadUsers();
+    }
+    async function reviewTask(id) {
+      console.log('Requesting review',id);
+      await fetch(`/api/tasks/${id}/review`,{method:'POST'});
+      loadUsers();
+    }
+    async function deleteTask(id) {
+      if(!confirm('Delete?')) return;
+      console.log('Deleting',id);
+      await fetch(`/api/tasks/${id}`,{method:'DELETE'});
+      loadUsers();
+    }
+
+    // On load
+    loadUsers();
+  </script>
+</body>
+</html>
