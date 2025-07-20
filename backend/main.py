@@ -13,16 +13,22 @@ app = FastAPI()
 def root():
     return {"message": "API is live!"}
 
+import traceback
+from fastapi import FastAPI, HTTPException
+
 @app.get("/mongo-test")
 def mongo_test():
     try:
-        # This will throw if the client never connected
+        # Ping the server
         client.admin.command("ping")
-        # And this will throw if the DB or collection is wrong
+        # Try reading one document
         sample = summaries.find_one()
         return {"connected": True, "sample": sample}
     except Exception as e:
-        return {"connected": False, "error": str(e)}
+        # Capture full stack trace
+        tb = traceback.format_exc()
+        # Return it in the JSON so Render logs both error and trace
+        raise HTTPException(status_code=500, detail={"error": str(e), "traceback": tb})
 
 
 # CORS for frontend-backend communication
