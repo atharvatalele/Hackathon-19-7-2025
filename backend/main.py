@@ -18,7 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = MongoClient(os.environ("MONGO_URI"))
+client = MongoClient(os.environ["MONGO_URI"])
 db = client["AI_Results"]
 summaries = db["summaries"]
 
