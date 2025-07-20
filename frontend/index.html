@@ -57,7 +57,7 @@
       if (search) query += `&query=${encodeURIComponent(search)}`;
 
       try {
-        const res = await fetch(`https://your-backend-url.onrender.com/summarize?${query}`);
+        const res = await fetch(`http://127.0.0.1:8000/summaries?${query}`);
         const data = await res.json();
 
         if (!Array.isArray(data) || data.length === 0) {
