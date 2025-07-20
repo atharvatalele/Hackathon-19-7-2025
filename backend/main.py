@@ -16,20 +16,20 @@ def root():
 import traceback
 from fastapi import FastAPI, HTTPException
 
+
 @app.get("/mongo-test")
 def mongo_test():
     try:
-        # Ping the server
         client.admin.command("ping")
-        # Try reading one document
         sample = summaries.find_one()
         return {"connected": True, "sample": sample}
     except Exception as e:
-        # Capture full stack trace
-        tb = traceback.format_exc()
-        # Return it in the JSON so Render logs both error and trace
-        raise HTTPException(status_code=500, detail={"error": str(e), "traceback": tb})
-
+        # Print to stdout/stderr so Render logs it
+        print("=== MONGO-TEST ERROR ===")
+        traceback.print_exc()
+        print("========================")
+        # Surface a readable message to the client
+        raise HTTPException(status_code=500, detail=str(e))
 
 # CORS for frontend-backend communication
 app.add_middleware(
