@@ -9,27 +9,6 @@ import os
 load_dotenv()
 
 app = FastAPI()
-@app.get("/")
-def root():
-    return {"message": "API is live!"}
-
-import traceback
-from fastapi import FastAPI, HTTPException
-
-
-@app.get("/mongo-test")
-def mongo_test():
-    try:
-        client.admin.command("ping")
-        sample = summaries.find_one()
-        return {"connected": True, "sample": sample}
-    except Exception as e:
-        # Print to stdout/stderr so Render logs it
-        print("=== MONGO-TEST ERROR ===")
-        traceback.print_exc()
-        print("========================")
-        # Surface a readable message to the client
-        raise HTTPException(status_code=500, detail=str(e))
 
 # CORS for frontend-backend communication
 app.add_middleware(
@@ -39,7 +18,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-mongo_uri = "mongodb+srv://jotiraditya:Jotir123@cluster0.90agyz8.mongodb.net/AI_Results?retryWrites=true&w=majority&appName=Cluster0"
+mongo_uri = os.getenv("MONGO_URI")
+mongo_uri = "mongodb+srv://jotiraditya:Jotir123@cluster0.90agyz8.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 client = MongoClient(mongo_uri)
 db = client["AI_Results"]
 summaries = db["summaries"]
