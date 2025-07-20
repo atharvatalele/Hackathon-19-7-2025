@@ -9,6 +9,21 @@ import os
 load_dotenv()
 
 app = FastAPI()
+@app.get("/")
+def root():
+    return {"message": "API is live!"}
+
+@app.get("/mongo-test")
+def mongo_test():
+    try:
+        # This will throw if the client never connected
+        client.admin.command("ping")
+        # And this will throw if the DB or collection is wrong
+        sample = summaries.find_one()
+        return {"connected": True, "sample": sample}
+    except Exception as e:
+        return {"connected": False, "error": str(e)}
+
 
 # CORS for frontend-backend communication
 app.add_middleware(
